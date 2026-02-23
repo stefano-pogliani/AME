@@ -1,3 +1,15 @@
 *.bat
 3ViewAJRGodfrey-AME.url
 log.txt
+
+# UV managed files
+.python-version
+.venv
+
+# Ignore autocorrect file used for testing.
+ame.autocorrect.toml
+test.md
+
+# PyInstaller generated files.
+build/
+dist/

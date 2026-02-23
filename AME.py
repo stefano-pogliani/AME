@@ -8,18 +8,194 @@ Users can also export to HTML using Pandoc so mathematical notation can be displ
 """
 
 # import base packages
-import sys
-import platform
-import os
-import codecs
 from pathlib import Path
+import codecs
+import os
+import platform
 import shutil
+import sys
+import tomllib
+import traceback
 
 # import third party packages
-import markdown
-import wx
 from wx.html2 import WebView
+import markdown
 import pypandoc
+import wx
+
+
+class Autocorrect:
+    """Manage autocorrect/text replacement logic for the editor.
+
+    Attributes
+    ----------
+    corrections: dict[str, str]
+        Map of autocorrect rules, indicating which sequences will be replaced with which words.
+    terminals: list[str]
+        List of characters that indicate the time to check for autocorrect substitutions.
+    """
+
+    # Class level attributes.
+    CONFIG_FILE: str = "ame.autocorrect.toml"
+    DEFAULT_TERMINALS: list[str] = [' ', '\r', '\n', '.', ',', ';', ':']
+
+    # Instance level attributes (for type definitions and hints).
+    _corrections: dict[str, str]
+    _corrections_max: int
+    _corrections_min: int
+    _terminals: list[str]
+
+    def __init__(self) -> None:
+        self.load_config()
+
+    def attempt_correction(self, text_entry: wx.TextEntry, cursor: int) -> None:
+        """Attempts to perform corrections on the given element.
+
+        This method uses the maximum and minimum length of configured corrections to minimise
+        the amount of text that needs to be checked.
+
+        It also only considers ranges if both current cursor location and the location just before
+        the start of the correction range are terminal characters.
+        This ensure auto-correction is applied to entire words and not in the middle of typing.
+
+        Arguments
+        ---------
+        text_entry: wx.TextEntry
+            The wx.TextEntry element to inspect and update if needed.
+        cursor: int
+            The wx.TextEntry current cursor position in the wx.TextEntry.
+            Includes the termination character that triggered the correction to happen.
+        """
+        end = cursor - 1
+        check_range = range(self._corrections_min, self._corrections_max + 1)
+
+        for check_pos in check_range:
+            start = cursor - check_pos - 1
+            # Candidate sting is longer then available text so skip it.
+            if start < 0:
+                continue
+
+            # Check if the range is a full word (between terminals).
+            is_full_word = start == 0 or self.is_cursor_terminal(text_entry, start - 1)
+            if not is_full_word:
+                continue
+
+            # Check the selected text for an autocorrect rule, and replace if matched.
+            candidate = text_entry.GetRange(start, end)
+            if candidate in self._corrections:
+                replacement = self._corrections[candidate]
+                text_entry.Replace(start, end, replacement)
+                insert = text_entry.GetInsertionPoint()
+                text_entry.SetInsertionPoint(insert + 1)
+                return
+
+    def is_cursor_terminal(self, text_entry: wx.TextEntry, cursor: int) -> bool:
+        """Check if the character at the given position is terminal.
+
+        Arguments
+        ---------
+        text_entry: wx.TextEntry
+            The wx.TextEntry element to inspect and update if needed.
+        cursor: int
+            The wx.TextEntry current cursor position in the wx.TextEntry.
+            Includes the termination character that triggered the correction to happen.
+        """
+        # We can't look before position zero in the text.
+        if cursor < 0:
+            return False
+        character = text_entry.GetRange(cursor, cursor + 1)
+        return character in self._terminals
+
+    def load_config(self, dirname: str | None = None) -> None:
+        """Load autocorrect configuration.
+
+        Configuration is looked for in two places:
+        - A system wide path (OS dependant).
+        - A project specific path (the directory of the open file).
+
+        This allows users to create a global set of autocorrect replacements
+        as well as a local set of autocorrect replacements specific to the current work.
+        The local configuration overwrite replacement rules for the same input sequence.
+
+        In both cases the file must be called `ame.autocorrect.toml`.
+
+        Attributes
+        ----------
+        dirname: str | None
+            Optional directory to apply custom corrections from.
+        """
+        # Default values in case config files are not provided.
+        corrections = {}
+        terminals = Autocorrect.DEFAULT_TERMINALS
+
+        def _load_file(conf_path: Path) -> list[str] | None:
+            """Helper function to attempt reading a file and updating the autocorrect config."""
+            terminals = None
+            try:
+                with conf_path.open("rb") as fd:
+                    conf = tomllib.load(fd)
+                    if "terminals" in conf:
+                        terminals = conf["terminals"]
+                    if "corrections" in conf:
+                        corrections.update(conf["corrections"])
+
+            except FileNotFoundError:
+                # Configuration files are expected to not exist.
+                pass
+
+            except Exception as ex:
+                # Ignore missing or invalid auto-correction files.
+                # This ensures the editor can be opened even if corrections won't fully work.
+                print(f"Failed to load autocorrect configuration: {ex}")
+                traceback.print_exc()
+
+            return terminals
+
+        # Load the "user" (global for the current user) corrections.
+        new_terminals = _load_file(Autocorrect._get_user_config())
+        if new_terminals:
+            terminals = new_terminals
+
+        # Load the "project" (file directory) specific corrections, if specified.
+        if dirname:
+            conf_path = Path(dirname) / Autocorrect.CONFIG_FILE
+            new_terminals = _load_file(conf_path)
+            if new_terminals:
+                terminals = new_terminals
+
+        # Update autocorrect state with loaded configuration.
+        self._terminals = terminals
+        self.set_corrections(corrections)
+
+    def set_corrections(self, corrections: dict[str, str]) -> None:
+        """Set the active autocorrect rules to the new corrections map.
+
+        Arguments
+        ---------
+        corrections: dict[str, str]
+            Map of autocorrect rules, indicating which sequences will be replaced with which words.
+        """
+        correct_keys = list(corrections.keys())
+        self._corrections = corrections
+        self._corrections_max = max(len(key) for key in correct_keys) if correct_keys else 0
+        self._corrections_min = min(len(key) for key in correct_keys) if correct_keys else 0
+
+    @staticmethod
+    def _get_user_config() -> Path:
+        """Return the path to the user configuration file."""
+        home = Path.home()
+
+        # While this solution Includes platform specific logic it avoids the need for extra deps.
+        if sys.platform == "win32":
+            return home / "AppData" / "Roaming" / "AME" / Autocorrect.CONFIG_FILE
+        elif sys.platform == "linux":
+            return home / ".local" / "share" / "AME" / Autocorrect.CONFIG_FILE
+        elif sys.platform == "darwin":
+            return home / "Library" / "Application Support" / "AME" / Autocorrect.CONFIG_FILE
+
+        # Fallback to something reasonable for unknown platforms.
+        return home / "AME" / Autocorrect.CONFIG_FILE
+
 
 
 class WebPanel(wx.Panel):
@@ -100,8 +276,11 @@ class Window(wx.Frame):
         self.Show(True)
         self.Maximize(True)
         self.SetTitle("Untitled | Markdown Editor")
+
+        self.autocorrect = Autocorrect()
+
         if len(sys.argv) > 1:
-            self.dirname = os.path.dirname(sys.argv[1])
+            self.dirname = os.path.dirname(sys.argv[1]) or os.curdir
             self.filename = os.path.basename(sys.argv[1])
             self.open()
 
@@ -116,6 +295,7 @@ class Window(wx.Frame):
         self.edited = False
         self.SetTitle(self.filename + " | Markdown Editor")
         self.nb.SetSelection(0)
+        self.autocorrect.load_config(self.dirname)
 
     def shouldSave(self):
         dlg = wx.MessageDialog(
@@ -217,6 +397,7 @@ class Window(wx.Frame):
             self.dirname = dlg.GetDirectory()
             self.save()
             self.SetTitle(self.filename + " | Markdown Editor")
+            self.autocorrect.load_config(self.dirname)
             return None  # Explicitly return None for consistency
 
     def onExport(self, e):
@@ -290,6 +471,11 @@ class Window(wx.Frame):
 
     def onEdited(self, e):
         self.edited = True
+        cursor_pos = self.mdPanel.control.GetInsertionPoint()
+
+        # Check if it is time to run autocorrect.
+        if self.autocorrect.is_cursor_terminal(self.mdPanel.control, cursor_pos - 1):
+            self.autocorrect.attempt_correction(self.mdPanel.control, cursor_pos)
 
     def onViewHtml(self, e):
         self.nb.SetSelection(1)

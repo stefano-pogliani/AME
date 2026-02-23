@@ -1,0 +1,17 @@
+[project]
+name = "ame"
+version = "0.2.0"
+description = "Accessible Markdown Editor"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "markdown>=3.10",
+    "pypandoc>=1.16.2",
+    "wxpython>=4.2.4",
+]
+
+[dependency-groups]
+dev = [
+    "pyinstaller>=6.19.0",
+    "ruff>=0.15.1",
+]

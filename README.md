@@ -15,7 +15,7 @@ On Mac, press command instead of control.
 
 ## Jonathan's additions
 
-Import and export using pandoc is achieved using pypandoc, the Python wrapper to pandoc. This requires an installation of pandoc.
+Import and export using [pandoc](https://pandoc.org/) is achieved using pypandoc, the Python wrapper to pandoc. This requires an installation of pandoc.
 
 Import is sorted. The user does not need to specify the file type, but Pandoc only imports a small range of files. Hot key is CTRL+SHIFT+O
 
@@ -44,24 +44,34 @@ Small alterations:
 
 Autocorrect can replace configured words with longer words or full sentences to speed up typing.
 
-Autocorrect triggers when a word separating character is typed. Replacement is considered only if a
-full word matches to ensure that replacement do not happen mid-word.
-The list of characters that count as word separator is configurable and defaults to:
+Autocorrect triggers when a word separating character is typed. Replacement is considered only if a full word matches to ensure that replacement do not happen mid-word.
+
+The list of characters that count as word separator is configurable and defaults to:,
+
 space, new lines, period (`.`), comma (`,`), semicolon (`;`) and colon (`:`).
 
-AME now looks for autocorrect configuration files in two place:
+AME now looks for autocorrect configuration files in two places:
 
 * A user wide configuration file, loaded every time the editor is opened.
   * On Linux: `$HOME/.local/share/AME/ame.autocorrect.toml`.
   * On MacOS: `$HOME/Library/Application Support/AME/ame.autocorrect.toml`.
-  * On Windows: `%USER%/AppData/Roaming/AME/ame.autocorrect.toml`.
+  * On Windows: `%AppData%/Roaming/AME/ame.autocorrect.toml`.
+
 * A project local configuration file, loaded when a file is opened or a new file is first saved.
-  This configuration file is called `ame.autocorrect.toml` and located in the same directory
-  as the file being opened.
+
+This configuration file is called `ame.autocorrect.toml` and located in the same directory as the file being opened.
+
+For example,
+
+If you want an autocorrect string to apply to certain works,
+
+1. Put the 'ame.autocorrect.toml' file in the same directory as your manuscript/project.
+2. Customize that particular 'ame.autocorrect.toml' file.
+3. When you open your manuscript in that directory or save a file for the first time in that directory, the 'ame.autocorrect.toml' file in that directory will apply to that project.
 
 The project local file takes precedence over the user wide configuration file.
-This allows users to set up some always useful rules and enrich them or replace them with
-rules specific to the file (or files) being edited right now.
+
+This allows users to set up some always useful rules and enrich them or replace them with rules specific to the file (or files) being edited right now.
 
 As an example, here is a configuration file:
 

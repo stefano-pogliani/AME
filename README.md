@@ -46,20 +46,20 @@ Autocorrect can replace configured words with longer words or full sentences to 
 
 Autocorrect triggers when a word separating character is typed. Replacement is considered only if a full word matches to ensure that replacement do not happen mid-word.
 
-The list of characters that count as word separator is configurable and defaults to:,
-
-space, new lines, period (`.`), comma (`,`), semicolon (`;`) and colon (`:`).
+The list of characters that count as word separator is configurable and defaults the combination of
+Python's [`string.punctuation`](https://docs.python.org/3/library/string.html#string.punctuation)
+and [`string.whitespace`](https://docs.python.org/3/library/string.html#string.whitespace).
 
 AME now looks for autocorrect configuration files in two places:
 
 * A user wide configuration file, loaded every time the editor is opened.
   * On Linux: `$HOME/.local/share/AME/ame.autocorrect.toml`.
   * On MacOS: `$HOME/Library/Application Support/AME/ame.autocorrect.toml`.
-  * On Windows: `%AppData%/Roaming/AME/ame.autocorrect.toml`.
+  * On Windows: `%AppData%/AME/ame.autocorrect.toml`.
 
 * A project local configuration file, loaded when a file is opened or a new file is first saved.
 
-This configuration file is called `ame.autocorrect.toml` and located in the same directory as the file being opened.
+This local configuration file is called `ame.autocorrect.toml` and located in the same directory as the file being opened.
 
 For example,
 
@@ -77,8 +77,8 @@ As an example, here is a configuration file:
 
 ```toml
 # List of characters that represent the beginning/ending of a word.
-# Mainly intended as a way to self-fix bugs, the default characters are shown in this example.
-terminals = [' ', '\r', '\n', '.', ',', ';', ':']
+# Mainly intended as a way to self-fix bugs, the default should work in most cases.
+terminals = [' ', '\r', '\n', '.']
 
 # Correction rules mapping typed sequences (on the left) to their extended text (on the right).
 [corrections]
@@ -107,12 +107,21 @@ Setting up Windows for development was easier then expected:
 1. Install Python using the [Python Install Manager](https://www.python.org/downloads/).
 2. Install `git` with `winget install --id Git.Git -e --source winget`.
 3. Install `uv`:
-   a. Download the install script with your browser: <https://astral.sh/uv/install.ps1>.
-   b. Review the script to ensure it is safe to execute (it is at the time of writing but this may change).
-   c. Execute the install script: `powershell -ExecutionPolicy ByPass -c Downloads\install.ps1`.
+   1. Download the install script with your browser: <https://astral.sh/uv/install.ps1>.
+   2. Review the script to ensure it is safe to execute (it is at the time of writing but this may change).
+   3. Execute the install script: `powershell -ExecutionPolicy ByPass -c Downloads\install.ps1`.
 
 Install project dependencies with `uv sync`.
 
 Run the editor with `uv run python AME.py`.
 
-Package the editor with `uv run pyinstaller -F --onefile --noconsole AME.py`.
+### Release
+
+Releasing new versions is easy thanks to `pyinstaller`.
+The process has to happen on the OS you are releasing for (so on Windows for Windows releases).
+
+1. Ensure you have the latest changes: `git pull origin`.
+2. Run pyinstaller: `uv run pyinstaller -F --onefile --noconsole AME.py`.
+3. Copy the `README.md` and the example config file into the `dist/` directory.
+4. Zip up all the files in the `dist/` directory.
+5. Upload the zip file to GitHub as a new release.

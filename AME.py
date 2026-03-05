@@ -13,6 +13,7 @@ import codecs
 import os
 import platform
 import shutil
+import string
 import sys
 import tomllib
 import traceback
@@ -37,7 +38,7 @@ class Autocorrect:
 
     # Class level attributes.
     CONFIG_FILE: str = "ame.autocorrect.toml"
-    DEFAULT_TERMINALS: list[str] = [' ', '\r', '\n', '.', ',', ';', ':']
+    DEFAULT_TERMINALS: list[str] = string.punctuation + string.whitespace
 
     # Instance level attributes (for type definitions and hints).
     _corrections: dict[str, str]
@@ -187,7 +188,7 @@ class Autocorrect:
 
         # While this solution Includes platform specific logic it avoids the need for extra deps.
         if sys.platform == "win32":
-            return home / "AppData" / "Roaming" / "AME" / Autocorrect.CONFIG_FILE
+            return os.getenv("APPDATA") / "AME" / Autocorrect.CONFIG_FILE
         elif sys.platform == "linux":
             return home / ".local" / "share" / "AME" / Autocorrect.CONFIG_FILE
         elif sys.platform == "darwin":
@@ -279,6 +280,10 @@ class Window(wx.Frame):
 
         self.autocorrect = Autocorrect()
 
+        # Ensure the editor opens up in text mode.
+        self.nb.SetSelection(0)
+
+        # If a file was specified on the command line, open it.
         if len(sys.argv) > 1:
             self.dirname = os.path.dirname(sys.argv[1]) or os.curdir
             self.filename = os.path.basename(sys.argv[1])

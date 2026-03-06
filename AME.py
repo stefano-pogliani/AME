@@ -25,6 +25,66 @@ import pypandoc
 import wx
 
 
+class AutocorrectTerminals:
+    """Manages the configured list of Autocorrect terminal characters
+
+    Attributes
+    ----------
+    terminals: list[str]
+        List of characters that indicate the time to check for autocorrect substitutions.
+    """
+
+    # Class level attributes.
+    DEFAULT_TERMINALS: list[str] = string.punctuation + string.whitespace
+
+    # Instance level attributes (for type definitions and hints).
+    _terminals: list[str]
+
+    def __init__(self) -> None:
+        self._terminals = AutocorrectTerminals.DEFAULT_TERMINALS
+    
+    def check(self, character: str) -> bool:
+        """Check if the given character is terminal.
+        
+        Arguments
+        ---------
+        character
+            The character to check.
+
+        Returns
+        -------
+        True if the character is a configured terminal.
+        """
+        return character in self._terminals
+
+    def update(self, config: dict | list[str]) -> None:
+        """Update the set of configured terminals.
+
+        Arguments
+        ---------
+        config
+            Either a list of terminal to use as is or a dictionary of terminal configurations.
+            List mode was initially supported in v0.2.0-rc1 but we want to ease the transition.
+            Configuration mode aims to be more flexible and provides `add`, `remove`, and `set`.
+        """
+        if isinstance(config, list):
+            self._terminals = config
+            return
+        # First reset the list if the config says so.
+        if "set" in config:
+            self._terminals = config["set"]
+        
+        # Next add any new terminals.
+        if "add" in config:
+            add = config["add"]
+            self._terminals += [t for t in add if t not in self._terminals]
+
+        # Finally remove all terminals we never want.
+        if "remove" in config:
+            remove = config["remove"]
+            self._terminals = [t for t in self._terminals if t not in remove]
+
+
 class Autocorrect:
     """Manage autocorrect/text replacement logic for the editor.
 
@@ -38,13 +98,12 @@ class Autocorrect:
 
     # Class level attributes.
     CONFIG_FILE: str = "ame.autocorrect.toml"
-    DEFAULT_TERMINALS: list[str] = string.punctuation + string.whitespace
 
     # Instance level attributes (for type definitions and hints).
     _corrections: dict[str, str]
     _corrections_max: int
     _corrections_min: int
-    _terminals: list[str]
+    _terminals: AutocorrectTerminals
 
     def __init__(self) -> None:
         self.load_config()
@@ -105,7 +164,7 @@ class Autocorrect:
         if cursor < 0:
             return False
         character = text_entry.GetRange(cursor, cursor + 1)
-        return character in self._terminals
+        return self._terminals.check(character)
 
     def load_config(self, dirname: str | None = None) -> None:
         """Load autocorrect configuration.
@@ -127,16 +186,15 @@ class Autocorrect:
         """
         # Default values in case config files are not provided.
         corrections = {}
-        terminals = Autocorrect.DEFAULT_TERMINALS
+        terminals = AutocorrectTerminals()
 
-        def _load_file(conf_path: Path) -> list[str] | None:
+        def _load_file(conf_path: Path) -> None:
             """Helper function to attempt reading a file and updating the autocorrect config."""
-            terminals = None
             try:
                 with conf_path.open("rb") as fd:
                     conf = tomllib.load(fd)
                     if "terminals" in conf:
-                        terminals = conf["terminals"]
+                        terminals.update(conf["terminals"])
                     if "corrections" in conf:
                         corrections.update(conf["corrections"])
 
@@ -150,19 +208,13 @@ class Autocorrect:
                 print(f"Failed to load autocorrect configuration: {ex}")
                 traceback.print_exc()
 
-            return terminals
-
         # Load the "user" (global for the current user) corrections.
-        new_terminals = _load_file(Autocorrect._get_user_config())
-        if new_terminals:
-            terminals = new_terminals
+        _load_file(Autocorrect._get_user_config())
 
         # Load the "project" (file directory) specific corrections, if specified.
         if dirname:
             conf_path = Path(dirname) / Autocorrect.CONFIG_FILE
-            new_terminals = _load_file(conf_path)
-            if new_terminals:
-                terminals = new_terminals
+            _load_file(conf_path)
 
         # Update autocorrect state with loaded configuration.
         self._terminals = terminals
@@ -188,7 +240,8 @@ class Autocorrect:
 
         # While this solution Includes platform specific logic it avoids the need for extra deps.
         if sys.platform == "win32":
-            return os.getenv("APPDATA") / "AME" / Autocorrect.CONFIG_FILE
+            appdata = Path(os.getenv("APPDATA"))
+            return appdata / "AME" / Autocorrect.CONFIG_FILE
         elif sys.platform == "linux":
             return home / ".local" / "share" / "AME" / Autocorrect.CONFIG_FILE
         elif sys.platform == "darwin":
@@ -196,7 +249,6 @@ class Autocorrect:
 
         # Fallback to something reasonable for unknown platforms.
         return home / "AME" / Autocorrect.CONFIG_FILE
-
 
 
 class WebPanel(wx.Panel):
@@ -282,6 +334,7 @@ class Window(wx.Frame):
 
         # Ensure the editor opens up in text mode.
         self.nb.SetSelection(0)
+        self.focus(self.mdPanel)
 
         # If a file was specified on the command line, open it.
         if len(sys.argv) > 1:
@@ -299,8 +352,11 @@ class Window(wx.Frame):
                 self.mdPanel.control.ChangeValue(f.read())
         self.edited = False
         self.SetTitle(self.filename + " | Markdown Editor")
-        self.nb.SetSelection(0)
         self.autocorrect.load_config(self.dirname)
+
+        # Set the focus on the editor text box.
+        self.nb.SetSelection(0)
+        self.focus(self.mdPanel)
 
     def shouldSave(self):
         dlg = wx.MessageDialog(

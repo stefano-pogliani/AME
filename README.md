@@ -38,6 +38,7 @@ Small alterations:
 ## Stefano's additions
 
 * Introduce an autocorrect system into the editor.
+* Tweak UI focus on Windows so the text area is selected at start.
 * [Development] Add a `pyproject.toml` file to manage dependencies.
 
 ### Autocorrect
@@ -76,9 +77,15 @@ This allows users to set up some always useful rules and enrich them or replace 
 As an example, here is a configuration file:
 
 ```toml
-# List of characters that represent the beginning/ending of a word.
+# Characters to mark the beginning/ending of a word.
 # Mainly intended as a way to self-fix bugs, the default should work in most cases.
-terminals = [' ', '\r', '\n', '.']
+[terminals]
+# Characters to add to the current set of terminals.
+add = []
+# Characters to remove from the current set of terminals.
+remove = []
+# Full list of characters that indicate the beginning/ending of a word.
+set = [' ', '\r', '\n', '.']
 
 # Correction rules mapping typed sequences (on the left) to their extended text (on the right).
 [corrections]
@@ -122,6 +129,6 @@ The process has to happen on the OS you are releasing for (so on Windows for Win
 
 1. Ensure you have the latest changes: `git pull origin`.
 2. Run pyinstaller: `uv run pyinstaller -F --onefile --noconsole AME.py`.
-3. Copy the `README.md` and the example config file into the `dist/` directory.
+3. Copy the `README.md`, `LICENSE` and the example config file into the `dist/` directory.
 4. Zip up all the files in the `dist/` directory.
 5. Upload the zip file to GitHub as a new release.

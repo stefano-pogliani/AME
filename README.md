@@ -94,6 +94,11 @@ ie = "for example"
 etc = "etcetera"
 ```
 
+You can also convert a LibreOffice autocorrect data file into an AME autocorrect configuration
+file: `uv run python tools/libreoffice-conf.py acor_en-US.dat`.
+By default the new configuration is saved as `from-lo-ame.autocorrect.toml` so it won't override
+your local configuration unexpectedly.
+
 ### Development - Linux
 
 Start by installing the needed OS and python dependencies.

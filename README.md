@@ -68,7 +68,7 @@ If you want an autocorrect string to apply to certain works,
 
 1. Put the 'ame.autocorrect.toml' file in the same directory as your manuscript/project.
 2. Customize that particular 'ame.autocorrect.toml' file.
-3. When you open your manuscript in that directory or save a file for the first time in that directory, the 'ame.autocorrect.toml' file in that directory will apply to that project.
+3. When you open your manuscript using the file, open, dialog box, in that directory or save a file for the first time in that directory, the 'ame.autocorrect.toml' file in that directory will apply to that project.
 
 The project local file takes precedence over the user wide configuration file.
 

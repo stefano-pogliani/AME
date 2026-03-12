@@ -8,7 +8,10 @@ log.txt
 
 # Ignore autocorrect file used for testing.
 ame.autocorrect.toml
+from-lo-ame.autocorrect.toml
 test.md
+
+*.dat
 
 # PyInstaller generated files.
 build/

@@ -1,6 +1,7 @@
 *.bat
 3ViewAJRGodfrey-AME.url
 log.txt
+__pycache__/
 
 # UV managed files
 .python-version
@@ -8,11 +9,14 @@ log.txt
 
 # Ignore autocorrect file used for testing.
 ame.autocorrect.toml
-from-lo-ame.autocorrect.toml
+new-ame.autocorrect.toml
 test.md
 
+# Ignore autocorrect files for other editors (used for testing and development).
+*.acl
 *.dat
 
 # PyInstaller generated files.
+*.spec
 build/
 dist/

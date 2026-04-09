@@ -40,8 +40,9 @@ Small alterations:
 * Introduce an autocorrect system into the editor.
 * Tweak UI focus on Windows so the text area is selected at start.
 * [Development] Add a `pyproject.toml` file to manage dependencies.
+* [Development] Add a `CONTRIBUTING.md` file to move development docs from this readme.
 
-### Autocorrect
+## Autocorrect
 
 Autocorrect can replace configured words with longer words or full sentences to speed up typing.
 
@@ -94,46 +95,16 @@ ie = "for example"
 etc = "etcetera"
 ```
 
-You can also convert a LibreOffice autocorrect data file into an AME autocorrect configuration
-file: `uv run python tools/libreoffice-conf.py acor_en-US.dat`.
-By default the new configuration is saved as `from-lo-ame.autocorrect.toml` so it won't override
-your local configuration unexpectedly.
+### Import Office Autocorrect Files
 
-### Development - Linux
+The project comes with a small command line tool to convert LibreOffice autocorrect data files into an autocorrect configuration file that AME can load.
+Microsoft Office autocorrect data files are processed but with no guarantee it will work as the format is undocumented.
 
-Start by installing the needed OS and python dependencies.
-For the OS it will depend on what you use: I use Fedora so noted that here.
-Python dependencies are managed with [uv](https://docs.astral.sh/uv/) instead.
+To import LibreOffice or MS Office autocomplete files you call the `conf-import` to with the file names after it.
+ACL files are assumed to be MS Office, DAT files are assumed to be LibreOffice.
 
-```shell
-sudo dnf install gtk3-devel python3-devel webkit2gtk4.1-devel uv
-uv sync
-```
+Multiple files can be specified, in which case their rules are merged into one set.
+If two files have the same rule the merged configuration will use the rule from the latest file, which means files order is important if merging files that correct the same input to different values.
 
-Run the editor with `uv run python AME.py`.
-
-### Development - Windows
-
-Setting up Windows for development was easier then expected:
-
-1. Install Python using the [Python Install Manager](https://www.python.org/downloads/).
-2. Install `git` with `winget install --id Git.Git -e --source winget`.
-3. Install `uv`:
-   1. Download the install script with your browser: <https://astral.sh/uv/install.ps1>.
-   2. Review the script to ensure it is safe to execute (it is at the time of writing but this may change).
-   3. Execute the install script: `powershell -ExecutionPolicy ByPass -c Downloads\install.ps1`.
-
-Install project dependencies with `uv sync`.
-
-Run the editor with `uv run python AME.py`.
-
-### Release
-
-Releasing new versions is easy thanks to `pyinstaller`.
-The process has to happen on the OS you are releasing for (so on Windows for Windows releases).
-
-1. Ensure you have the latest changes: `git pull origin`.
-2. Run pyinstaller: `uv run pyinstaller -F --onefile --noconsole AME.py`.
-3. Copy the `README.md`, `LICENSE` and the example config file into the `dist/` directory.
-4. Zip up all the files in the `dist/` directory.
-5. Upload the zip file to GitHub as a new release.
+For example if you run `conf-import MSO1033.acl acor_en-US.dat` you will get a `new-ame.autocorrect.toml` file with all the replacement rules of both input files.
+The file to save the new configuration in can be set with the `--ame-target` option and uses a `new-` prefix by default so existing configurations are not replaced automatically.
